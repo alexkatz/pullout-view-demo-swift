@@ -42,14 +42,20 @@ class HomeViewController: UIViewController {
     case .ended:
       let y = pulloutView.frame.origin.y
       let velocityY = gestureRecognizer.velocity(in: view).y
-      
-      let remainingDistance = abs(pulloutView.frame.origin.y - (view.frame.size.height - BOTTOM_MARGIN))
-      let initialVelocity = CGVector(dx: 0, dy: childViewExceedsBoundaries() ? 0 : velocityY / remainingDistance)
+      let VELOCITY_THRESHOLD = CGFloat(200)
+      let MAX_DEST_Y = TOP_MARGIN
+      let MIN_DEST_Y = view.frame.size.height - BOTTOM_MARGIN
+      let shouldMaximizeByLocation = y <= MAX_DEST_Y || abs(y - MAX_DEST_Y) < (MIN_DEST_Y - MAX_DEST_Y) / 2
+      let shouldMaximizeByVelocity = -velocityY > VELOCITY_THRESHOLD
+      let shouldMinimizeByVelocity = velocityY > VELOCITY_THRESHOLD
+      let shouldMaximize = !shouldMinimizeByVelocity && (shouldMaximizeByLocation || shouldMaximizeByVelocity)
+      let DEST_Y = shouldMaximize ? MAX_DEST_Y : MIN_DEST_Y
+      let remainingDistance = abs(y - DEST_Y)
+      let initialVelocity = CGVector(dx: 0, dy: pulloutIsExceedingBoundaries() ? 0 : abs(velocityY / remainingDistance))
       let springParameters = UISpringTimingParameters(mass: 4.5, stiffness: 900, damping: 90, initialVelocity: initialVelocity)
-      
       animator = UIViewPropertyAnimator(duration: 0, timingParameters: springParameters)
       animator?.isInterruptible = true
-      animator?.addAnimations { self.pulloutView.frame = CGRect(origin: CGPoint(x: self.pulloutView.frame.origin.x, y: self.view.frame.size.height - self.BOTTOM_MARGIN), size: self.pulloutView.frame.size) }
+      animator?.addAnimations { self.pulloutView.frame = CGRect(origin: CGPoint(x: self.pulloutView.frame.origin.x, y: DEST_Y), size: self.pulloutView.frame.size) }
       animator?.startAnimation()
       break
     default:
@@ -70,13 +76,7 @@ class HomeViewController: UIViewController {
     return 1
   }
   
-  func childViewExceedsBoundaries() -> Bool {
+  func pulloutIsExceedingBoundaries() -> Bool {
     return pulloutView.frame.origin.y < TOP_MARGIN || pulloutView.frame.origin.y > view.frame.size.height - BOTTOM_MARGIN
   }
 }
-
-enum PulloutState {
-  case maximized
-  case minimized
-}
-
